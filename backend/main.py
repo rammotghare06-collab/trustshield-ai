@@ -3,8 +3,8 @@ main.py
 TrustShield AI backend — FastAPI application exposing scan, QR scan,
 copilot, dashboard, history and demo-simulator endpoints.
 
-Run from project root with:
-    python -m uvicorn backend.main:app --reload --port 8000
+Run locally from the backend directory with:
+    python -m uvicorn main:app --reload --port 8000
 """
 
 from datetime import datetime, timedelta
@@ -22,24 +22,24 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 
+
 # ---------------------------------------------------------------------------
-# Backend package imports
+# Backend imports
 # ---------------------------------------------------------------------------
 
-from backend.database.db import (
+from database.db import (
     get_db,
     init_db,
     SessionLocal,
 )
 
-from backend.database.models import ScanRecord
+from database.models import ScanRecord
 
-from backend.ai_engine.trust_score import run_scan
-from backend.ai_engine.copilot import ask_copilot
+from ai_engine.trust_score import run_scan
+from ai_engine.copilot import ask_copilot
+from ai_engine.qr_analysis import analyze_qr
 
-from backend.ai_engine.qr_analysis import analyze_qr
-
-from backend.demo_data.scenarios import (
+from demo_data.scenarios import (
     SCENARIOS,
     get_scenario,
 )
@@ -73,6 +73,14 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+MAX_MESSAGE_LENGTH = 10000
+MAX_QR_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+# ---------------------------------------------------------------------------
 # Startup
 # ---------------------------------------------------------------------------
 
@@ -83,14 +91,6 @@ def on_startup():
     """
     init_db()
     _seed_demo_history_if_empty()
-
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-MAX_MESSAGE_LENGTH = 10000
-MAX_QR_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +270,6 @@ def scan_message(
     Scan SMS/message text.
     """
 
-    # Validate message length
     if len(payload.text) > MAX_MESSAGE_LENGTH:
         raise HTTPException(
             status_code=413,
@@ -280,7 +279,6 @@ def scan_message(
             ),
         )
 
-    # Analyze message
     result = run_scan(
         "message",
         {
@@ -288,14 +286,12 @@ def scan_message(
         },
     )
 
-    # Handle invalid result
     if not result["valid"]:
         raise HTTPException(
             status_code=400,
             detail=result["error"],
         )
 
-    # Save result
     _save_scan(
         db,
         "sms",
@@ -413,10 +409,6 @@ async def scan_qr(
     Upload and scan a QR code image.
     """
 
-    # -------------------------------------------------
-    # Validate file type
-    # -------------------------------------------------
-
     allowed_types = {
         "image/png",
         "image/jpeg",
@@ -433,15 +425,7 @@ async def scan_qr(
             ),
         )
 
-    # -------------------------------------------------
-    # Read image
-    # -------------------------------------------------
-
     image_bytes = await file.read()
-
-    # -------------------------------------------------
-    # Validate file size
-    # -------------------------------------------------
 
     if not image_bytes:
         raise HTTPException(
@@ -455,15 +439,7 @@ async def scan_qr(
             detail="QR image is too large. Maximum allowed size is 10 MB.",
         )
 
-    # -------------------------------------------------
-    # Analyze QR
-    # -------------------------------------------------
-
     result = analyze_qr(image_bytes)
-
-    # -------------------------------------------------
-    # QR not detected
-    # -------------------------------------------------
 
     if not result.get("valid"):
         raise HTTPException(
@@ -474,10 +450,6 @@ async def scan_qr(
             ),
         )
 
-    # -------------------------------------------------
-    # Get decoded QR data
-    # -------------------------------------------------
-
     decoded_data = result.get(
         "findings",
         {},
@@ -485,16 +457,6 @@ async def scan_qr(
         "decoded_data",
         "",
     )
-
-    # -------------------------------------------------
-    # Save QR scan
-    #
-    # analyze_qr() returns:
-    # valid, error, indicators, findings
-    #
-    # It does NOT return trust score fields.
-    # Therefore we only save if those fields exist.
-    # -------------------------------------------------
 
     if all(
         key in result
@@ -512,10 +474,6 @@ async def scan_qr(
             decoded_data,
             result,
         )
-
-    # -------------------------------------------------
-    # Return result
-    # -------------------------------------------------
 
     return result
 
