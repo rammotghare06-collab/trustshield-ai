@@ -5,10 +5,9 @@
 
 An AI-powered digital trust & cybersecurity platform that helps everyday users detect
 phishing SMS/WhatsApp messages, scam emails, malicious URLs, and suspicious QR codes —
-and explains **why** something is risky, not just that it is.
+and explains **why** something is risky, not just that it is 
 
-Built for the hackathon theme **"Cybersecurity and Digital Trust."**
-
+**"Cybersecurity and Digital Trust."**
 ---
 
 ## What it does
