@@ -1,5 +1,4 @@
-const BASE = "/api";
-
+const BASE = `${import.meta.env.VITE_API_BASE_URL || ""}/api`;
 async function handle(res) {
   if (!res.ok) {
     let detail = "Request failed";
