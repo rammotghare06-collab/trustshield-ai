@@ -13,6 +13,7 @@ class ScanRecord(Base):
     __tablename__ = "scan_records"
 
     id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(String(100), index=True, nullable=False)
     scan_type = Column(String(20), index=True)          # message | url | qr | email
     input_summary = Column(Text)                          # truncated preview of input
     score = Column(Float)

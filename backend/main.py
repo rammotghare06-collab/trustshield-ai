@@ -1,12 +1,15 @@
 """
 main.py
+
 TrustShield AI backend — FastAPI application exposing scan, QR scan,
 copilot, dashboard, history and demo-simulator endpoints.
 
 Run locally from the backend directory with:
+
     python -m uvicorn main:app --reload --port 8000
 """
 
+import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -15,17 +18,16 @@ from fastapi import (
     UploadFile,
     File,
     Depends,
+    Header,
     HTTPException,
 )
+
 from fastapi.middleware.cors import CORSMiddleware
+
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+
 from pydantic import BaseModel
-
-
-# ---------------------------------------------------------------------------
-# Backend imports
-# ---------------------------------------------------------------------------
 
 from database.db import (
     get_db,
@@ -65,13 +67,14 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+
+        # Production frontend
         "https://trustshield-ai-1-yj2s.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +86,24 @@ MAX_QR_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 # ---------------------------------------------------------------------------
+# Client Identification
+# ---------------------------------------------------------------------------
+
+def get_client_id(
+    x_client_id: Optional[str] = Header(default=None),
+) -> str:
+    """
+    Get client ID from frontend.
+
+    The frontend sends X-Client-ID in every request.
+
+    If no client ID is provided, create a new one.
+    """
+
+    return x_client_id or str(uuid.uuid4())
+
+
+# ---------------------------------------------------------------------------
 # Startup
 # ---------------------------------------------------------------------------
 
@@ -91,6 +112,7 @@ def on_startup():
     """
     Initialize database and seed demo history on application startup.
     """
+
     init_db()
     _seed_demo_history_if_empty()
 
@@ -101,15 +123,18 @@ def on_startup():
 
 def _save_scan(
     db: Session,
+    client_id: str,
     scan_type: str,
     input_preview: str,
     result: dict,
 ):
     """
-    Save a scan result into the database.
+    Save a scan result into the database
+    for a specific client.
     """
 
     record = ScanRecord(
+        client_id=client_id,
         scan_type=scan_type,
         input_summary=(input_preview or "")[:200],
         score=result["score"],
@@ -216,6 +241,7 @@ def _seed_demo_history_if_empty():
         ) in seed:
 
             record = ScanRecord(
+                client_id="demo",
                 scan_type=scan_type,
                 input_summary=preview,
                 score=score,
@@ -266,6 +292,7 @@ class CopilotRequest(BaseModel):
 @app.post("/api/scan/message")
 def scan_message(
     payload: MessageScanRequest,
+    client_id: str = Depends(get_client_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -296,6 +323,7 @@ def scan_message(
 
     _save_scan(
         db,
+        client_id,
         "sms",
         payload.text,
         result,
@@ -311,6 +339,7 @@ def scan_message(
 @app.post("/api/scan/url")
 def scan_url(
     payload: UrlScanRequest,
+    client_id: str = Depends(get_client_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -338,6 +367,7 @@ def scan_url(
 
     _save_scan(
         db,
+        client_id,
         "url",
         payload.url,
         result,
@@ -353,6 +383,7 @@ def scan_url(
 @app.post("/api/scan/email")
 def scan_email(
     payload: EmailScanRequest,
+    client_id: str = Depends(get_client_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -390,6 +421,7 @@ def scan_email(
 
     _save_scan(
         db,
+        client_id,
         "email",
         preview,
         result,
@@ -405,6 +437,7 @@ def scan_email(
 @app.post("/api/scan/qr")
 async def scan_qr(
     file: UploadFile = File(...),
+    client_id: str = Depends(get_client_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -452,12 +485,9 @@ async def scan_qr(
             ),
         )
 
-    decoded_data = result.get(
-        "findings",
-        {},
-    ).get(
-        "decoded_data",
-        "",
+    decoded_data = (
+        result.get("findings", {})
+        .get("decoded_data", "")
     )
 
     if all(
@@ -472,6 +502,7 @@ async def scan_qr(
     ):
         _save_scan(
             db,
+            client_id,
             "qr",
             decoded_data,
             result,
@@ -503,10 +534,12 @@ def list_scenarios():
 @app.post("/api/demo/run/{scenario_id}")
 def run_demo_scenario(
     scenario_id: str,
+    client_id: str = Depends(get_client_id),
     db: Session = Depends(get_db),
 ):
     """
-    Run a predefined threat simulation.
+    Run a predefined threat simulation
+    for the current client.
     """
 
     scenario = get_scenario(
@@ -548,6 +581,7 @@ def run_demo_scenario(
 
         _save_scan(
             db,
+            client_id,
             scan_type_map.get(
                 category,
                 category,
@@ -576,7 +610,7 @@ def copilot(
     )
 
     return {
-        "reply": result
+        "reply": result,
     }
 
 
@@ -586,26 +620,29 @@ def copilot(
 
 @app.get("/api/dashboard/stats")
 def dashboard_stats(
+    client_id: str = Depends(get_client_id),
     db: Session = Depends(get_db),
 ):
     """
-    Return dashboard statistics.
+    Return dashboard statistics for the current client only.
     """
 
-    total = (
-        db.query(ScanRecord)
-        .count()
+    base_query = db.query(ScanRecord).filter(
+        ScanRecord.client_id == client_id
     )
+
+    total = base_query.count()
 
     threats = (
         db.query(ScanRecord)
         .filter(
+            ScanRecord.client_id == client_id,
             ScanRecord.risk_level.in_(
                 [
                     "SUSPICIOUS",
                     "DANGEROUS",
                 ]
-            )
+            ),
         )
         .count()
     )
@@ -613,7 +650,8 @@ def dashboard_stats(
     safe = (
         db.query(ScanRecord)
         .filter(
-            ScanRecord.risk_level == "TRUSTED"
+            ScanRecord.client_id == client_id,
+            ScanRecord.risk_level == "TRUSTED",
         )
         .count()
     )
@@ -621,16 +659,18 @@ def dashboard_stats(
     caution = (
         db.query(ScanRecord)
         .filter(
-            ScanRecord.risk_level == "CAUTION"
+            ScanRecord.client_id == client_id,
+            ScanRecord.risk_level == "CAUTION",
         )
         .count()
     )
 
     avg_score = (
         db.query(
-            func.avg(
-                ScanRecord.score
-            )
+            func.avg(ScanRecord.score)
+        )
+        .filter(
+            ScanRecord.client_id == client_id
         )
         .scalar()
         or 0
@@ -643,13 +683,17 @@ def dashboard_stats(
         db.query(
             ScanRecord.scan_type
         )
+        .filter(
+            ScanRecord.client_id == client_id
+        )
         .distinct()
     ):
 
         by_type[scan_type] = (
             db.query(ScanRecord)
             .filter(
-                ScanRecord.scan_type == scan_type
+                ScanRecord.client_id == client_id,
+                ScanRecord.scan_type == scan_type,
             )
             .count()
         )
@@ -661,13 +705,17 @@ def dashboard_stats(
         db.query(
             ScanRecord.risk_level
         )
+        .filter(
+            ScanRecord.client_id == client_id
+        )
         .distinct()
     ):
 
         risk_breakdown[level] = (
             db.query(ScanRecord)
             .filter(
-                ScanRecord.risk_level == level
+                ScanRecord.client_id == client_id,
+                ScanRecord.risk_level == level,
             )
             .count()
         )
@@ -697,6 +745,7 @@ def dashboard_stats(
         day_count = (
             db.query(ScanRecord)
             .filter(
+                ScanRecord.client_id == client_id,
                 ScanRecord.created_at >= day_start,
                 ScanRecord.created_at < day_end,
             )
@@ -706,6 +755,7 @@ def dashboard_stats(
         day_threats = (
             db.query(ScanRecord)
             .filter(
+                ScanRecord.client_id == client_id,
                 ScanRecord.created_at >= day_start,
                 ScanRecord.created_at < day_end,
                 ScanRecord.risk_level.in_(
@@ -748,14 +798,19 @@ def dashboard_stats(
 @app.get("/api/history")
 def scan_history(
     limit: int = 50,
+    client_id: str = Depends(get_client_id),
     db: Session = Depends(get_db),
 ):
     """
-    Return recent scan history.
+    Return recent scan history
+    for the current client only.
     """
 
     records = (
         db.query(ScanRecord)
+        .filter(
+            ScanRecord.client_id == client_id
+        )
         .order_by(
             ScanRecord.created_at.desc()
         )
@@ -771,15 +826,18 @@ def scan_history(
 
 @app.delete("/api/history")
 def clear_history(
+    client_id: str = Depends(get_client_id),
     db: Session = Depends(get_db),
 ):
     """
-    Delete all scan history.
+    Delete scan history for the current client only.
     """
 
-    db.query(
-        ScanRecord
-    ).delete()
+    db.query(ScanRecord).filter(
+        ScanRecord.client_id == client_id
+    ).delete(
+        synchronize_session=False
+    )
 
     db.commit()
 
