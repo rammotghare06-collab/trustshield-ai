@@ -99,25 +99,6 @@ automatically (see `vite.config.js`) — no CORS setup needed for local dev.
 
 Visit **http://127.0.0.1:5173** → Landing page → "Scan Now" or "Try Demo".
 
----
-
-## Hackathon demo flow (~3–5 min)
-
-1. Open the app → Landing page → **Dashboard**.
-2. Go to **Message Detector**, click "Load sample", click **Analyze Message** →
-   🔴 PHISHING / FRAUD, low trust score, full "Why?" breakdown.
-3. Paste a safe message (e.g. *"Your order has been shipped and will arrive Thursday"*)
-   → 🟢 TRUSTED, high score.
-4. Go to **URL Scanner**, try the risky example → see domain/typosquat findings.
-5. Open **Trust Passport** for a scanned item → premium identity/security/reputation card.
-6. Open **Cyber Copilot**, ask *"I clicked a suspicious link, what should I do?"*
-7. Open **Live Simulator**, run 2–3 scenarios (Fake KYC, Fake Lottery, Safe Government
-   Message) to show the animated scan → score pipeline end-to-end.
-8. Show **Dashboard**/**Analytics** for the aggregate story, and **Scan History** for
-   the audit trail.
-
----
-
 ## Notes
 
 - This is a **defensive** cybersecurity tool only: detection, explanation, and user
