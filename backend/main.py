@@ -67,6 +67,12 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
+        "http://localhost:5176",
+        "http://127.0.0.1:5176",
 
         # Production frontend
         "https://trustshield-ai-1-yj2s.onrender.com",
@@ -75,7 +81,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -92,31 +97,11 @@ MAX_QR_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 def get_client_id(
     x_client_id: Optional[str] = Header(default=None),
 ) -> str:
-    """
-    Get client ID from frontend.
+    client_id = x_client_id or str(uuid.uuid4())
 
-    The frontend sends X-Client-ID in every request.
+    print(">>> CLIENT ID:", client_id)
 
-    If no client ID is provided, create a new one.
-    """
-
-    return x_client_id or str(uuid.uuid4())
-
-
-# ---------------------------------------------------------------------------
-# Startup
-# ---------------------------------------------------------------------------
-
-@app.on_event("startup")
-def on_startup():
-    """
-    Initialize database and seed demo history on application startup.
-    """
-
-    init_db()
-    _seed_demo_history_if_empty()
-
-
+    return client_id
 # ---------------------------------------------------------------------------
 # Database Helpers
 # ---------------------------------------------------------------------------
@@ -137,6 +122,7 @@ def _save_scan(
         client_id=client_id,
         scan_type=scan_type,
         input_summary=(input_preview or "")[:200],
+        full_input=input_preview or "",
         score=result["score"],
         risk_level=result["risk_level"],
         classification=result["classification"],
@@ -145,8 +131,13 @@ def _save_scan(
     )
 
     db.add(record)
+
+    print(">>> SAVE DB ENGINE:", db.bind.url)
+
     db.commit()
     db.refresh(record)
+
+    print(">>> SAVED SCAN ID:", record.id)
 
     return record
 
@@ -164,104 +155,26 @@ def _seed_demo_history_if_empty():
         if count > 0:
             return
 
-        seed = [
-            (
-                "sms",
-                "URGENT! Your bank account will be blocked...",
-                12,
-                "DANGEROUS",
-                "PHISHING / FRAUD",
-                94,
-                6,
-                5,
-            ),
-            (
-                "url",
-                "https://www.amazon.in",
-                96,
-                "TRUSTED",
-                "REAL / SAFE",
-                70,
-                0,
-                4,
-            ),
-            (
-                "qr",
-                "upi://pay?pa=merchant@upi",
-                55,
-                "SUSPICIOUS",
-                "POSSIBLE SCAM",
-                78,
-                3,
-                3,
-            ),
-            (
-                "email",
-                "Update your KYC now - HDFC Bank",
-                18,
-                "DANGEROUS",
-                "PHISHING / FRAUD",
-                91,
-                5,
-                2,
-            ),
-            (
-                "sms",
-                "Your OTP is 482913. Do not share.",
-                88,
-                "CAUTION",
-                "SUSPICIOUS",
-                65,
-                1,
-                1,
-            ),
-            (
-                "url",
-                "http://sbi-kyc-verify.xyz",
-                8,
-                "DANGEROUS",
-                "PHISHING / FRAUD",
-                97,
-                7,
-                1,
-            ),
-        ]
-
-        now = datetime.utcnow()
-
-        for (
-            scan_type,
-            preview,
-            score,
-            risk,
-            classification,
-            confidence,
-            indicators,
-            days_ago,
-        ) in seed:
-
-            record = ScanRecord(
-                client_id="demo",
-                scan_type=scan_type,
-                input_summary=preview,
-                score=score,
-                risk_level=risk,
-                classification=classification,
-                confidence=confidence,
-                indicator_count=indicators,
-                created_at=now - timedelta(
-                    days=days_ago,
-                    hours=3,
-                ),
-            )
-
-            db.add(record)
-
-        db.commit()
-
+        # YAHAN TUMHARA EXISTING seed CODE RAHEGA
+        # ...
+        
     finally:
         db.close()
 
+
+# ---------------------------------------------------------------------------
+# Startup
+# ---------------------------------------------------------------------------
+
+@app.on_event("startup")
+def on_startup():
+    """
+    Initialize database and seed demo history on application startup.
+    """
+
+    init_db()
+    _seed_demo_history_if_empty()
+# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # Request Models

@@ -1,5 +1,7 @@
 import { Routes, Route } from "react-router-dom";
+
 import Sidebar from "./components/Sidebar.jsx";
+
 import Landing from "./pages/Landing.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import MessageDetector from "./pages/MessageDetector.jsx";
@@ -13,30 +15,140 @@ import ScanHistory from "./pages/ScanHistory.jsx";
 import LiveSimulator from "./pages/LiveSimulator.jsx";
 import Settings from "./pages/Settings.jsx";
 
+
 function AppShell({ children }) {
   return (
     <div className="app-shell">
       <Sidebar />
-      <div className="main-area">{children}</div>
+
+      <main className="main-area">
+        {children}
+      </main>
     </div>
   );
 }
 
+
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/dashboard" element={<AppShell><Dashboard /></AppShell>} />
-      <Route path="/message-detector" element={<AppShell><MessageDetector /></AppShell>} />
-      <Route path="/url-scanner" element={<AppShell><UrlScanner /></AppShell>} />
-      <Route path="/qr-scanner" element={<AppShell><QrScanner /></AppShell>} />
-      <Route path="/email-shield" element={<AppShell><EmailShield /></AppShell>} />
-      <Route path="/trust-passport" element={<AppShell><TrustPassport /></AppShell>} />
-      <Route path="/cyber-copilot" element={<AppShell><CyberCopilot /></AppShell>} />
-      <Route path="/analytics" element={<AppShell><Analytics /></AppShell>} />
-      <Route path="/scan-history" element={<AppShell><ScanHistory /></AppShell>} />
-      <Route path="/live-simulator" element={<AppShell><LiveSimulator /></AppShell>} />
-      <Route path="/settings" element={<AppShell><Settings /></AppShell>} />
+
+      {/* Landing */}
+      <Route
+        path="/"
+        element={<Landing />}
+      />
+
+      {/* Dashboard */}
+      <Route
+        path="/dashboard"
+        element={
+          <AppShell>
+            <Dashboard />
+          </AppShell>
+        }
+      />
+
+      {/* Message Detector */}
+      <Route
+        path="/message-detector"
+        element={
+          <AppShell>
+            <MessageDetector />
+          </AppShell>
+        }
+      />
+
+      {/* URL Scanner */}
+      <Route
+        path="/url-scanner"
+        element={
+          <AppShell>
+            <UrlScanner />
+          </AppShell>
+        }
+      />
+
+      {/* QR Scanner */}
+      <Route
+        path="/qr-scanner"
+        element={
+          <AppShell>
+            <QrScanner />
+          </AppShell>
+        }
+      />
+
+      {/* Email Shield */}
+      <Route
+        path="/email-shield"
+        element={
+          <AppShell>
+            <EmailShield />
+          </AppShell>
+        }
+      />
+
+      {/* Trust Passport */}
+      <Route
+        path="/trust-passport"
+        element={
+          <AppShell>
+            <TrustPassport />
+          </AppShell>
+        }
+      />
+
+      {/* Cyber Copilot */}
+      <Route
+        path="/cyber-copilot"
+        element={
+          <AppShell>
+            <CyberCopilot />
+          </AppShell>
+        }
+      />
+
+      {/* Analytics */}
+      <Route
+        path="/analytics"
+        element={
+          <AppShell>
+            <Analytics />
+          </AppShell>
+        }
+      />
+
+      {/* Scan History */}
+      <Route
+        path="/scan-history"
+        element={
+          <AppShell>
+            <ScanHistory />
+          </AppShell>
+        }
+      />
+
+      {/* Live Simulator */}
+      <Route
+        path="/live-simulator"
+        element={
+          <AppShell>
+            <LiveSimulator />
+          </AppShell>
+        }
+      />
+
+      {/* Settings */}
+      <Route
+        path="/settings"
+        element={
+          <AppShell>
+            <Settings />
+          </AppShell>
+        }
+      />
+
     </Routes>
   );
 }
